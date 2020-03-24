@@ -178,6 +178,6 @@ class CPU:
             
             else:
                 print("Invalid instruction")
-                running = False
+                self.running = False
 
             self.pc += self.inc_size
