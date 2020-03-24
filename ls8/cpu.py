@@ -10,7 +10,6 @@ class CPU:
         """Construct a new CPU."""
         self.pc = 0
         self.reg = [0] * 8
-        self.inc_size = 0
         self.ram = [0] * 256
         # The MAR contains the address that is being read or written to.
         self.mar = 0
@@ -95,15 +94,16 @@ class CPU:
         LDI = 130
         PRN = 71
 
-        # INSTRUCTION REGISTER
-        IR = self.ram_read(self.pc)
-        # GET THE NEXT 2 BYTES OF DATA IN CASE WE NEED THEM
-        operand_a = self.ram_read(self.pc + 1)
-        operand_b = self.ram_read(self.pc + 2)
-
-        inc_size = 0
         running = True
+        
         while running:
+            # INSTRUCTION REGISTER
+            IR = self.ram_read(self.pc)
+            # GET THE NEXT 2 BYTES OF DATA IN CASE WE NEED THEM
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
+
+            inc_size = 0
             # LDI
             if IR == LDI:
                 self.reg[operand_a] = operand_b
@@ -117,6 +117,7 @@ class CPU:
             elif IR == HALT:
                 print("Operations halted.")
                 running = False
+                sys.exit(-1)
             # INSTRUCTION NOT RECOGNISED
             else:
                 print("Invalid instruction")
