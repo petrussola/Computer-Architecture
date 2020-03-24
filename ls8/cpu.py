@@ -2,6 +2,11 @@
 
 import sys
 
+HLT = 0b00000001
+PRN = 0b01000111
+LDI = 0b10000010
+MUL = 0b10100010
+
 
 class CPU:
     """Main CPU class."""
@@ -11,10 +16,18 @@ class CPU:
         self.pc = 0
         self.reg = [0] * 8
         self.ram = [0] * 256
+        self.inc_size = 0
         # The MAR contains the address that is being read or written to.
         self.mar = 0
         # The MDR contains the data that was read or the data to write
         self.mdr = 0
+        # BRANCH TABLE
+        self.running = True
+        self.branchtable = {}
+        self.branchtable[LDI] = self.handle_ldi
+        self.branchtable[HLT] = self.handle_hlt
+        self.branchtable[PRN] = self.handle_prn
+        self.branchtable[MUL] = self.handle_mul
 
     def ram_read(self, address):
         value_in_memory = self.ram[address]
@@ -108,44 +121,63 @@ class CPU:
 
         print()
 
+    def handle_ldi(self, operand_a, operand_b):
+        self.reg[operand_a] = operand_b
+        self.inc_size = 3
+
+    def handle_prn(self, operand_a, operand_b):
+        value = self.reg[operand_a]
+        self.inc_size = 2
+        print(value)
+
+    def handle_mul(self, operand_a, operand_b):
+        self.alu("MUL", operand_a, operand_b)
+        self.inc_size = 3
+
+    def handle_hlt(self, operand_a, operand_b):
+        print("Operations halted.")
+        sys.exit(-1)
+        self.running = False
+
     def run(self):
         """Run the CPU."""
-        HLT = 0b00000001
-        PRN = 0b01000111
-        LDI = 0b10000010
-        MUL = 0b10100010
+        # running = True
 
-        running = True
-
-        while running:
+        while self.running:
             # INSTRUCTION REGISTER
             IR = self.ram_read(self.pc)
+
             # GET THE NEXT 2 BYTES OF DATA IN CASE WE NEED THEM
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
 
-            inc_size = 0
+            # """ CODE AFTER BRANCH TABLE """
+            if self.branchtable.get(IR):
+                self.branchtable[IR](operand_a, operand_b)
+
+            # """ CODE BEFORE BRANCH TABLE """
             # LDI
-            if IR == LDI:
-                self.reg[operand_a] = operand_b
-                inc_size = 3
+            # if IR == LDI:
+                #     self.reg[operand_a] = operand_b
+                #     inc_size = 3
             # PRN
-            elif IR == PRN:
-                value = self.reg[operand_a]
-                print(value)
-                inc_size = 2
+            # elif IR == PRN:
+                # value = self.reg[operand_a]
+                # print(value)
+                # self.inc_size = 2
             # MUL
-            elif IR == MUL:
-                self.alu("MUL", operand_a, operand_b)
-                inc_size = 3
+            # elif IR == MUL:
+                # self.alu("MUL", operand_a, operand_b)
+                # self.inc_size = 3
             # HLT
-            elif IR == HLT:
-                print("Operations halted.")
-                sys.exit(-1)
-                running = False
+            # elif IR == HLT:
+            #     print("Operations halted.")
+            #     sys.exit(-1)
+            #     running = False
             # INSTRUCTION NOT RECOGNISED
+            
             else:
                 print("Invalid instruction")
                 running = False
 
-            self.pc += inc_size
+            self.pc += self.inc_size
