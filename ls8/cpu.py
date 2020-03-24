@@ -6,6 +6,8 @@ HLT = 0b00000001
 PRN = 0b01000111
 LDI = 0b10000010
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
 
 
 class CPU:
@@ -28,6 +30,10 @@ class CPU:
         self.branchtable[HLT] = self.handle_hlt
         self.branchtable[PRN] = self.handle_prn
         self.branchtable[MUL] = self.handle_mul
+        self.branchtable[PUSH] = self.handle_push
+        self.branchtable[POP] = self.handle_pop
+        # STACK
+        self.stack_pointer = 0xF4
 
     def ram_read(self, address):
         value_in_memory = self.ram[address]
@@ -122,8 +128,15 @@ class CPU:
         print()
 
     def handle_ldi(self, operand_a, operand_b):
+        # print("#### LDI START ####")
+        # self.trace()
+        # self.print_stack()
+        # print("-------------------")
         self.reg[operand_a] = operand_b
         self.inc_size = 3
+        # self.trace()
+        # self.print_stack()
+        # print("---- LDI END ----")
 
     def handle_prn(self, operand_a, operand_b):
         value = self.reg[operand_a]
@@ -138,6 +151,41 @@ class CPU:
         print("Operations halted.")
         sys.exit(-1)
         self.running = False
+
+    ## HELPER FUNCTION TO DEBUG
+    def print_stack(self):
+        for i in range(0xF4, self.stack_pointer - 1, -1):
+            print(f'Position in ram: {hex(i)}. Value: {self.ram[i]}')
+
+    def handle_push(self, operand_a, operand_b):
+        # print("#### PUSH START ####")
+        # self.trace()
+        # self.print_stack()
+        # print("-------------------")
+        value = self.reg[operand_a]
+        self.stack_pointer -= 1
+        for i in range(self.stack_pointer, 0xF4):
+            self.ram[i] = self.ram[i + 1]
+        self.ram[0xF4] = value
+        self.inc_size = 2
+        # self.trace()
+        # self.print_stack()
+        # print("---- PUSH END ----")
+
+    def handle_pop(self, operand_a, operand_b):
+        # print("### POP START ###")
+        # self.trace()
+        # self.print_stack()
+        # print("-------------------")
+        value = self.ram[0xF4]
+        self.reg[operand_a] = value
+        for i in range(0xF4, self.stack_pointer, -1):
+            self.ram[i] = self.ram[i - 1]
+        self.stack_pointer += 1
+        self.inc_size = 2
+        # self.trace()
+        # self.print_stack()
+        # print("---- POP END ----")
 
     def run(self):
         """Run the CPU."""
@@ -175,7 +223,7 @@ class CPU:
             #     sys.exit(-1)
             #     running = False
             # INSTRUCTION NOT RECOGNISED
-            
+
             else:
                 print("Invalid instruction")
                 self.running = False
