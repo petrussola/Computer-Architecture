@@ -41,23 +41,41 @@ class CPU:
     def load(self):
         """Load a program into memory."""
 
-        address = 0
+        # address = 0
 
-        # For now, we've just hardcoded a program:
+        # # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010,  # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111,  # PRN R0
+        #     0b00000000,
+        #     0b00000001,  # HLT
+        # ]
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        # for instruction in program:
+        #     self.ram[address] = instruction
+        #     address += 1
+        """Load instructions from a file"""
+        starting_memory = 0
+        # debug = 1
+        file_name = sys.argv[1]
+        with open(file_name) as f:
+            for line in f:
+                # WE DIVIDE LINE IF THERE IS A COMMENT
+                comment_split = line.split('#')
+                # WE TAKE THE LEFT PART OF THE ARRAY, AND STRIP SPACE AT THE END
+                instruction = comment_split[0].strip()
+                # print(f'Instruction: {instruction} in line {debug}')
+                # WE CONVERT STRING WITH BINARY CODE INTO BINARY VALUE
+                binary_code = int(instruction, 2)
+                # WE SAVE EACH INSTRUCTION INTO RAM
+                self.ram_write(starting_memory, binary_code)
+                # WE INCREMENT THE ADDRESS IN MEMORE SO WE CAN ADD THE NEXT INSTRUCTION IN THE NEXT SLOT
+                starting_memory += 1
+                # debug += 1
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -90,12 +108,12 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        HALT = 1
-        LDI = 130
-        PRN = 71
+        HLT = 0b00000001
+        PRN = 0b01000111
+        LDI = 0b10000010
 
         running = True
-        
+
         while running:
             # INSTRUCTION REGISTER
             IR = self.ram_read(self.pc)
@@ -114,10 +132,10 @@ class CPU:
                 print(value)
                 inc_size = 2
             # HLT
-            elif IR == HALT:
+            elif IR == HLT:
                 print("Operations halted.")
-                running = False
                 sys.exit(-1)
+                running = False
             # INSTRUCTION NOT RECOGNISED
             else:
                 print("Invalid instruction")
