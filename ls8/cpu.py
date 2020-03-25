@@ -8,6 +8,9 @@ LDI = 0b10000010
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
+CALL = 0b01010000
+RET = 0b00010001
+ADD = 0b10100000
 
 
 class CPU:
@@ -33,8 +36,13 @@ class CPU:
         self.branchtable[PUSH] = self.handle_push
         self.branchtable[POP] = self.handle_pop
         # STACK POINTER
-        self.sp = 7 # IT POINTS TO REGISTER NUMBER 7, WHICH ACCORDING TO SPECS HOLDS THE STACK POINTER
-        self.reg[self.sp] = 0xF3 # WE SET THE INITIAL STACK POINTER TO 0XF3, THE MEMORY SLOT WHICH, ACCORDING TO SPEC, IS THE START OF THE SPEC
+        self.sp = 7  # IT POINTS TO REGISTER NUMBER 7, WHICH ACCORDING TO SPECS HOLDS THE STACK POINTER
+        # WE SET THE INITIAL STACK POINTER TO 0XF3, THE MEMORY SLOT WHICH, ACCORDING TO SPEC, IS THE START OF THE SPEC
+        self.reg[self.sp] = 0xF3
+        # CALL / RET
+        self.branchtable[CALL] = self.handle_call
+        self.branchtable[RET] = self.handle_ret
+        self.branchtable[ADD] = self.handle_add
 
     def ram_read(self, address):
         value_in_memory = self.ram[address]
@@ -89,6 +97,8 @@ class CPU:
                 # WE TAKE THE LEFT PART OF THE ARRAY, AND STRIP SPACE AT THE END
                 instruction = comment_split[0].strip()
                 # print(f'Instruction: {instruction} in line {debug}')
+                if instruction == '':
+                    continue
                 # WE CONVERT STRING WITH BINARY CODE INTO BINARY VALUE
                 binary_code = int(instruction, 2)
                 # WE SAVE EACH INSTRUCTION INTO RAM
@@ -103,6 +113,7 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         # elif op == "SUB": etc
+        # MUL
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
         else:
@@ -128,7 +139,7 @@ class CPU:
 
         print()
 
-    def handle_ldi(self, operand_a, operand_b):
+    def handle_ldi(self, IR, operand_a, operand_b):
         # print("#### LDI START ####")
         # self.trace()
         # self.print_stack()
@@ -139,44 +150,47 @@ class CPU:
         # self.print_stack()
         # print("---- LDI END ----")
 
-    def handle_prn(self, operand_a, operand_b):
+    def handle_prn(self, IR, operand_a, operand_b):
         value = self.reg[operand_a]
         self.inc_size = 2
         print(value)
 
-    def handle_mul(self, operand_a, operand_b):
+    def handle_mul(self, IR, operand_a, operand_b):
         self.alu("MUL", operand_a, operand_b)
         self.inc_size = 3
 
-    def handle_hlt(self, operand_a, operand_b):
+    def handle_hlt(self, IR, operand_a, operand_b):
         print("Operations halted.")
         sys.exit(-1)
         self.running = False
 
     # HELPER FUNCTION TO DEBUG
-    def print_stack(self):
-        for i in range(0xF4, self.stack_pointer - 1, -1):
-            print(f'Position in ram: {hex(i)}. Value: {self.ram[i]}')
+    # def print_stack(self):
+    #     for i in range(0xF4, self.stack_pointer - 1, -1):
+    #         print(f'Position in ram: {hex(i)}. Value: {self.ram[i]}')
 
-    def handle_push(self, operand_a, operand_b):
+    def handle_push(self, IR, operand_a=None, operand_b=None):
         # print("#### PUSH START ####")
         # self.trace()
         # self.print_stack()
         # print("-------------------")
-
-        # WE GRAB THE VALUE AT THE REGISTER WE WANT TO PUSH
-        value = self.reg[operand_a]
+        if IR == CALL:
+            value = operand_a
+        else:
+            # WE GRAB THE VALUE AT THE REGISTER WE WANT TO PUSH
+            value = self.reg[operand_a]
         # WE DECREASE THE STACK POINTER BY ONE, SINCE WE ARE ADDING AN ITEM INTO THE STACK AND THE HEAD IS NOW ONE SLOT DOWN
         self.reg[self.sp] -= 1
         # WE SET THE HEAD OF THE STACK TO THE VALUE EXTRACTED FROM THE REGISTER
-        self.ram[self.reg[self.sp]] = value
+        # self.ram[self.reg[self.sp]] = value
+        self.ram_write(self.reg[self.sp], value)
         # WE SET THE SIZE FOR PC FOR NEXT INSTRUCTION TO TAKE PLACE
         self.inc_size = 2
         # self.trace()
         # self.print_stack()
         # print("---- PUSH END ----")
 
-    def handle_pop(self, operand_a, operand_b):
+    def handle_pop(self, IR, operand_a=None, operand_b=None):
         # print("### POP START ###")
         # self.trace()
         # self.print_stack()
@@ -184,31 +198,57 @@ class CPU:
 
         # WE EXTRACT THE VALUE AT THE HEAD OF THE STACK
         value = self.ram[self.reg[self.sp]]
-        # WE SET THE VALUE OF THE REGISTER TO THE VALUE EXTRACTED FROM THE HEAD OF THE STACK
-        self.reg[operand_a] = value
-        # WE DECREASE THE HEAD OF THE STACK SINCE WE REMOVED AN ELEMENT FROM IT
-        self.reg[self.sp] += 1
-        # WE SET THE SIZE FOR PC FOR NEXT INSTRUCTION TO TAKE PLACE
-        self.inc_size = 2
-        # self.trace()
-        # self.print_stack()
-        # print("---- POP END ----")
+        if operand_a:
+            # WE SET THE VALUE OF THE REGISTER TO THE VALUE EXTRACTED FROM THE HEAD OF THE STACK
+            self.reg[operand_a] = value
+            # WE DECREASE THE HEAD OF THE STACK SINCE WE REMOVED AN ELEMENT FROM IT
+            self.reg[self.sp] += 1
+            # WE SET THE SIZE FOR PC FOR NEXT INSTRUCTION TO TAKE PLACE
+            self.inc_size = 2
+            # self.trace()
+            # self.print_stack()
+            # print("---- POP END ----")
+        else:
+            return value
+
+    def handle_call(self, IR, operand_a, operand_b):
+        # address in memory where instruction after call self.pc will be set so CPU execution continues
+        next_instruction = self.pc + 2
+        # CALL ONLY USES ONE OPERAND. THEREFORE, OPERAND B IS THE NEXT INSTRUCTION AFTER CALL IS RETURNED
+        self.handle_push(IR, next_instruction)
+        # set program counter to the value in the register being passed with call
+        self.pc = self.reg[operand_a]
+
+    def handle_ret(self, IR, operand_a, operand_b):
+        # we set self.pc to the value extracted from the head of the stack
+        value = self.handle_pop(IR)
+        self.pc = value
+
+    def handle_add(self, IR, operand_a, operand_b):
+        self.alu("ADD", operand_a, operand_b)
+        self.inc_size = 3
 
     def run(self):
         """Run the CPU."""
         # running = True
+        instructions_set_pc = [CALL, RET]
 
         while self.running:
             # INSTRUCTION REGISTER
             IR = self.ram_read(self.pc)
-
+            # print(self.pc, "<<<<<< PC")
             # GET THE NEXT 2 BYTES OF DATA IN CASE WE NEED THEM
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
 
             # """ CODE AFTER BRANCH TABLE """
             if self.branchtable.get(IR):
-                self.branchtable[IR](operand_a, operand_b)
+                # for instructions that set PC themselves: i.e. CALL, RET
+                if IR in instructions_set_pc:
+                    self.branchtable[IR](IR, operand_a, operand_b)
+                else:
+                    self.branchtable[IR](IR, operand_a, operand_b)
+                    self.pc += self.inc_size
 
             # """ CODE BEFORE BRANCH TABLE """
             # LDI
@@ -234,5 +274,3 @@ class CPU:
             else:
                 print("Invalid instruction")
                 self.running = False
-
-            self.pc += self.inc_size
