@@ -243,11 +243,10 @@ class CPU:
 
             # """ CODE AFTER BRANCH TABLE """
             if self.branchtable.get(IR):
+                self.branchtable[IR](IR, operand_a, operand_b)
                 # for instructions that set PC themselves: i.e. CALL, RET
-                if IR in instructions_set_pc:
-                    self.branchtable[IR](IR, operand_a, operand_b)
-                else:
-                    self.branchtable[IR](IR, operand_a, operand_b)
+                if IR not in instructions_set_pc:
+                    # self.branchtable[IR](IR, operand_a, operand_b)
                     self.pc += self.inc_size
 
             # """ CODE BEFORE BRANCH TABLE """
