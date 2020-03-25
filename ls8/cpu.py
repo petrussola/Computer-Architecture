@@ -11,6 +11,7 @@ POP = 0b01000110
 CALL = 0b01010000
 RET = 0b00010001
 ADD = 0b10100000
+ST = 0b10000100
 
 
 class CPU:
@@ -38,11 +39,13 @@ class CPU:
         # STACK POINTER
         self.sp = 7  # IT POINTS TO REGISTER NUMBER 7, WHICH ACCORDING TO SPECS HOLDS THE STACK POINTER
         # WE SET THE INITIAL STACK POINTER TO 0XF3, THE MEMORY SLOT WHICH, ACCORDING TO SPEC, IS THE START OF THE SPEC
-        self.reg[self.sp] = 0xF3
+        self.reg[self.sp] = 0xF4
         # CALL / RET
         self.branchtable[CALL] = self.handle_call
         self.branchtable[RET] = self.handle_ret
         self.branchtable[ADD] = self.handle_add
+        # INTERRUPTS
+        self.branchtable[ST] = self.handle_st
 
     def ram_read(self, address):
         value_in_memory = self.ram[address]
@@ -226,6 +229,11 @@ class CPU:
 
     def handle_add(self, IR, operand_a, operand_b):
         self.alu("ADD", operand_a, operand_b)
+        self.inc_size = 3
+
+    def handle_st(self, IR, operand_a, operand_b):
+        value = self.reg[operand_b]
+        self.ram_write(self.reg[operand_a], value)
         self.inc_size = 3
 
     def run(self):
