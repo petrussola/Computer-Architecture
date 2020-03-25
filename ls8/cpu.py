@@ -32,8 +32,9 @@ class CPU:
         self.branchtable[MUL] = self.handle_mul
         self.branchtable[PUSH] = self.handle_push
         self.branchtable[POP] = self.handle_pop
-        # STACK
-        self.stack_pointer = 0xF4
+        # STACK POINTER
+        self.sp = 7 # IT POINTS TO REGISTER NUMBER 7, WHICH ACCORDING TO SPECS HOLDS THE STACK POINTER
+        self.reg[self.sp] = 0xF3 # WE SET THE INITIAL STACK POINTER TO 0XF3, THE MEMORY SLOT WHICH, ACCORDING TO SPEC, IS THE START OF THE SPEC
 
     def ram_read(self, address):
         value_in_memory = self.ram[address]
@@ -152,7 +153,7 @@ class CPU:
         sys.exit(-1)
         self.running = False
 
-    ## HELPER FUNCTION TO DEBUG
+    # HELPER FUNCTION TO DEBUG
     def print_stack(self):
         for i in range(0xF4, self.stack_pointer - 1, -1):
             print(f'Position in ram: {hex(i)}. Value: {self.ram[i]}')
@@ -162,11 +163,14 @@ class CPU:
         # self.trace()
         # self.print_stack()
         # print("-------------------")
+
+        # WE GRAB THE VALUE AT THE REGISTER WE WANT TO PUSH
         value = self.reg[operand_a]
-        self.stack_pointer -= 1
-        for i in range(self.stack_pointer, 0xF4):
-            self.ram[i] = self.ram[i + 1]
-        self.ram[0xF4] = value
+        # WE DECREASE THE STACK POINTER BY ONE, SINCE WE ARE ADDING AN ITEM INTO THE STACK AND THE HEAD IS NOW ONE SLOT DOWN
+        self.reg[self.sp] -= 1
+        # WE SET THE HEAD OF THE STACK TO THE VALUE EXTRACTED FROM THE REGISTER
+        self.ram[self.reg[self.sp]] = value
+        # WE SET THE SIZE FOR PC FOR NEXT INSTRUCTION TO TAKE PLACE
         self.inc_size = 2
         # self.trace()
         # self.print_stack()
@@ -177,11 +181,14 @@ class CPU:
         # self.trace()
         # self.print_stack()
         # print("-------------------")
-        value = self.ram[0xF4]
+
+        # WE EXTRACT THE VALUE AT THE HEAD OF THE STACK
+        value = self.ram[self.reg[self.sp]]
+        # WE SET THE VALUE OF THE REGISTER TO THE VALUE EXTRACTED FROM THE HEAD OF THE STACK
         self.reg[operand_a] = value
-        for i in range(0xF4, self.stack_pointer, -1):
-            self.ram[i] = self.ram[i - 1]
-        self.stack_pointer += 1
+        # WE DECREASE THE HEAD OF THE STACK SINCE WE REMOVED AN ELEMENT FROM IT
+        self.reg[self.sp] += 1
+        # WE SET THE SIZE FOR PC FOR NEXT INSTRUCTION TO TAKE PLACE
         self.inc_size = 2
         # self.trace()
         # self.print_stack()
